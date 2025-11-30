@@ -3,6 +3,9 @@
 #include <algorithm>
 #include <iostream>
 #include <vector>
+#include <thread>
+#include <future>
+#include <cmath>
 
 namespace wordle {
 
@@ -29,35 +32,21 @@ std::shared_ptr<MemoryNode> Builder::build() {
     for (size_t i = 0; i < words_.get_solutions().size(); ++i) {
         all_solutions.set(i);
     }
-    // Fixed start word SALET (heuristic or hardcoded).
-    // The spec says "Fixed start word SALET".
-    // I can enforce it by setting the first guess.
-    // However, solve() picks the best. If SALET is best, great.
-    // If spec requires SALET, I should start with it.
-    // "Max Entropy ... Fixed start word: SALET" (Table 2.1).
-    // I will let the solver run normally, but maybe for Depth 0 force "salet"?
-    // The table implies "At Depth 0 (Root), use Max Entropy. Constraint: Fixed start word SALET".
-    // This effectively means "Don't search, just use SALET".
-    // I will implement a check in solve() or just construct the root manually.
-    // Constructing manually is better to avoid recursion overhead for root.
-    
-    // Actually, solve() is general.
-    // I will call solve() but I need to handle the "Fixed start word" requirement.
-    // I'll modify solve to accept an optional "force guess".
-    // Or just let it run. SALET is usually optimal.
-    // But to be compliant, I should force it.
-    
-    // I'll just use solve() for now, and trust it picks SALET or close.
-    // Actually, spec says "guarantee... starting with the fixed word SALET".
-    // So I MUST use SALET at root.
-    
     return solve(all_solutions, 0);
 }
+
+// Struct to hold scoring result
+struct ScoredGuess {
+    int index;
+    double entropy;
+    int max_bucket;
+};
 
 std::shared_ptr<MemoryNode> Builder::solve(const SolverState& candidates, int depth) {
     if (candidates.count() == 0) return nullptr;
 
-    // Check cache
+    // Check cache (Reader lock could be useful here if we were threading the tree search itself,
+    // but we are threading the heuristic calc inside a single search step).
     if (cache_.count(candidates)) return cache_.at(candidates);
 
     int R = 6 - depth;
@@ -68,7 +57,6 @@ std::shared_ptr<MemoryNode> Builder::solve(const SolverState& candidates, int de
         auto node = std::make_shared<MemoryNode>();
         node->guess_index = solution_to_guess_[sol_idx];
         node->is_leaf = true;
-        // cache_[candidates] = node; // Don't cache leaf? Cheap to recreate.
         return node;
     }
 
@@ -82,42 +70,63 @@ std::shared_ptr<MemoryNode> Builder::solve(const SolverState& candidates, int de
         auto indices = candidates.get_active_indices();
         for (int s : indices) candidate_guesses.push_back(solution_to_guess_[s]);
     } else {
-        // All guesses
-        // Optimization: Use 'all_indices' precomputed?
         candidate_guesses.resize(words_.get_guesses().size());
         for (size_t i = 0; i < candidate_guesses.size(); ++i) candidate_guesses[i] = i;
     }
 
-    // Heuristics
-    struct ScoredGuess {
-        int index;
-        double entropy;
-        int max_bucket;
-    };
     std::vector<ScoredGuess> scored_guesses;
     scored_guesses.reserve(candidate_guesses.size());
 
-    // Force "SALET" at depth 0
+    // Force "salet" at depth 0
     if (depth == 0) {
-        // Find SALET
         const std::string start_word = "salet";
         auto it = std::lower_bound(words_.get_guesses().begin(), words_.get_guesses().end(), start_word);
         if (it != words_.get_guesses().end() && *it == start_word) {
             int idx = std::distance(words_.get_guesses().begin(), it);
-            scored_guesses.push_back({idx, 100.0, 1}); // Fake high score
-        } else {
-             std::cerr << "Warning: 'salet' not found in guesses." << std::endl;
+            scored_guesses.push_back({idx, 100.0, 1});
         }
     } else {
-        for (int g : candidate_guesses) {
-            auto h = compute_heuristic(candidates, g, table_);
-            if (R == 2 && h.max_bucket > 1) continue; // Prune
+        // PARALLEL HEURISTIC CALCULATION
+        unsigned int num_threads = std::thread::hardware_concurrency();
+        if (num_threads == 0) num_threads = 4;
+        
+        // If trivial workload, don't spin up threads
+        if (candidate_guesses.size() < 100) {
+             for (int g : candidate_guesses) {
+                auto h = compute_heuristic(candidates, g, table_);
+                if (R == 2 && h.max_bucket > 1) continue; 
+                double penalty = 0.0;
+                if (R == 3 && h.max_bucket > 5) penalty = 10.0;
+                scored_guesses.push_back({g, h.entropy - penalty, h.max_bucket});
+            }
+        } else {
+            std::vector<std::future<std::vector<ScoredGuess>>> futures;
+            size_t chunk_size = candidate_guesses.size() / num_threads;
             
-            // R=3 Hybrid penalty
-            double penalty = 0.0;
-            if (R == 3 && h.max_bucket > 5) penalty = 10.0; // Simple penalty
+            for (unsigned int t = 0; t < num_threads; ++t) {
+                size_t start = t * chunk_size;
+                size_t end = (t == num_threads - 1) ? candidate_guesses.size() : start + chunk_size;
+                
+                futures.push_back(std::async(std::launch::async, [start, end, &candidate_guesses, &candidates, this, R]() {
+                    std::vector<ScoredGuess> local_results;
+                    local_results.reserve(end - start);
+                    for (size_t i = start; i < end; ++i) {
+                        int g = candidate_guesses[i];
+                        auto h = compute_heuristic(candidates, g, table_);
+                        if (R == 2 && h.max_bucket > 1) continue; 
+                        
+                        double penalty = 0.0;
+                        if (R == 3 && h.max_bucket > 5) penalty = 10.0;
+                        local_results.push_back({g, h.entropy - penalty, h.max_bucket});
+                    }
+                    return local_results;
+                }));
+            }
             
-            scored_guesses.push_back({g, h.entropy - penalty, h.max_bucket});
+            for (auto& f : futures) {
+                auto res = f.get();
+                scored_guesses.insert(scored_guesses.end(), res.begin(), res.end());
+            }
         }
         
         // Sort
@@ -140,6 +149,7 @@ std::shared_ptr<MemoryNode> Builder::solve(const SolverState& candidates, int de
             bool possible = true;
             
             // Group by pattern
+            // This is fast enough scalar
             std::vector<std::vector<int>> bins(243);
             auto active = candidates.get_active_indices();
             for (int s : active) {
@@ -149,27 +159,15 @@ std::shared_ptr<MemoryNode> Builder::solve(const SolverState& candidates, int de
             for (int p = 0; p < 243; ++p) {
                 if (bins[p].empty()) continue;
                 
-                // Construct next state
                 SolverState next_state(table_.num_solutions());
                 for (int s : bins[p]) next_state.set(s);
                 
-                // If the next state is the same as current (no info gained), invalid move
-                // unless it matches the solution (pattern 242)
                 if (p != 242 && next_state.count() == candidates.count()) {
                      possible = false;
                      break; 
                 }
 
                 if (p == 242) {
-                    // We found the solution!
-                    // Is this a leaf node?
-                    // The node we are building IS the node where we guessed the solution.
-                    // So for p=242, we are done. child is null or leaf?
-                    // Spec says: "Output: word_list[nodes[current_node].guess_index]"
-                    // If pattern is 242, we stop.
-                    // So children[242] can be null or a special marker.
-                    // However, to satisfy "Leaf reached", the traversal should end.
-                    // I will leave children[242] as null. The runner stops on 242.
                     continue; 
                 }
                 

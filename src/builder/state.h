@@ -18,6 +18,8 @@ public:
     // Returns indices of set bits
     std::vector<int> get_active_indices() const;
 
+    const std::vector<uint64_t>& get_words() const { return bits_; }
+
     uint64_t hash() const;
 
     bool operator==(const SolverState& other) const;

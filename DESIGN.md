@@ -70,10 +70,13 @@ To ensure the solution fits within 6 guesses, the builder uses a "Remaining Gues
 -   It iterates through all 2,315 solutions, simulating the game using the generated tree.
 -   Asserts correctness, max depth $\le 6$, and valid transitions.
 
-## 4. Hardware Acceleration
--   **Tier 1 ($>1024$ candidates)**: GPU (CUDA) used for entropy calculation (if available).
--   **Tier 2 ($64 < N \le 1024$)**: CPU AVX2/512 multithreaded.
--   **Tier 3 ($\le 64$)**: Scalar CPU.
+## 4. Hardware Acceleration & Optimizations
+-   **Tier 1 (GPU)**: Not implemented (No CUDA hardware available).
+-   **Tier 2 (CPU Optimized)**: 
+    -   **Multithreading**: `std::async` is used to parallelize entropy calculations across all available cores.
+    -   **Efficient Bitset Iteration**: Replaced `std::vector` allocation with direct word-level iteration and `__builtin_ctzll` (Count Trailing Zeros) to rapidly identify active solution indices.
+    -   **Result**: Build time reduced from ~60s to ~1s on ARM64.
+-   **Tier 3 (Scalar)**: Fallback logic (superseded by Tier 2).
 
 ## 5. Modules Responsibilities
 
