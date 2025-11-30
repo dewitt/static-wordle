@@ -1,0 +1,19 @@
+# Build directories
+build/
+cmake-build-debug/
+cmake-build-release/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Generated artifacts
+solver_data.bin
+*.bin
+
+# IDEs
+.vscode/
+.idea/
+
+# Local data (optional, but if we want to track the source lists, keep them. 
+# nonsolutions.txt is intermediate, but I'll remove it explicitly)
