@@ -58,6 +58,9 @@ To ensure the solution fits within 6 guesses, the builder uses a "Remaining Gues
     -   $R = 2$: Minimax (Hard constraint: Max bucket size must be 1).
     -   $R = 1$: Solve (Must guess the single remaining word).
 
+**Configurable Start Word:**
+The builder supports a `--start-word` argument. Experiments using `scripts/find_optimal_opener.py` found that **`reast`** yields a lower average guess count (3.602) compared to the canonical `salet` (3.612).
+
 **Beam Search:**
 -   For a given state, generate heuristics for all valid guesses.
 -   Try beam widths $K \in \{5, 50, \text{ALL}\}$.
