@@ -10,7 +10,7 @@
 
 struct ScoredWord {
     std::string word;
-    double entropy;
+    double score;
 };
 
 int main(int argc, char** argv) {
@@ -48,22 +48,22 @@ int main(int argc, char** argv) {
     // It's already optimized.
     const auto& guesses = words.get_guesses();
     for (size_t i = 0; i < guesses.size(); ++i) {
-        auto h = wordle::compute_heuristic(all_solutions, i, table);
-        results.push_back({guesses[i], h.entropy});
+        auto h = wordle::compute_heuristic(all_solutions, i, table, wordle::HeuristicType::ENTROPY);
+        results.push_back({guesses[i], h.score});
     }
 
     auto end = std::chrono::high_resolution_clock::now();
     std::cout << "Ranking calculated in " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
 
-    // Sort descending by entropy
+    // Sort descending by entropy (score)
     std::sort(results.begin(), results.end(), [](const auto& a, const auto& b) {
-        return a.entropy > b.entropy;
+        return a.score > b.score;
     });
 
     std::cout << "\nTop " << top_n << " Openers by Entropy:\n";
     std::cout << "--------------------------------\n";
     for (int i = 0; i < std::min((int)results.size(), top_n); ++i) {
-        std::cout << std::fixed << std::setprecision(5) << results[i].word << " " << results[i].entropy << std::endl;
+        std::cout << std::fixed << std::setprecision(5) << results[i].word << " " << results[i].score << std::endl;
     }
 
     return 0;
