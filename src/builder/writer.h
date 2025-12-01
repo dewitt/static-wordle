@@ -4,6 +4,7 @@
 
 namespace wordle {
 
-bool write_solution(const std::string& path, std::shared_ptr<MemoryNode> root, const WordList& words);
+bool write_solution(const std::string &path, std::shared_ptr<MemoryNode> root,
+                    const WordList &words);
 
 }
