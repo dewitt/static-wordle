@@ -8,63 +8,89 @@
 #include <string>
 #include <vector>
 
-int main(int argc, char** argv) {
-    std::string s_path, g_path, out_path;
-    // Default to "trace" (avg 3.605) instead of "reast" (avg 3.602) because
-    // "trace" is a valid solution, offering a chance for a 1-guess win.
-    std::string start_word = "trace";
-    bool run_verify = false;
-    std::string single_list_path;
-    wordle::HeuristicType heuristic = wordle::HeuristicType::ENTROPY;
+int main(int argc, char **argv) {
+  std::string s_path, g_path, out_path;
+  // Default to "trace" (avg 3.605) instead of "reast" (avg 3.602) because
+  // "trace" is a valid solution, offering a chance for a 1-guess win.
+  std::string start_word = "trace";
+  bool run_verify = false;
+  std::string single_list_path;
+  wordle::HeuristicType heuristic = wordle::HeuristicType::ENTROPY;
 
-    for (int i = 1; i < argc; ++i) {
-        std::string arg = argv[i];
-        if (arg == "--solutions" && i + 1 < argc) s_path = argv[++i];
-        else if (arg == "--guesses" && i + 1 < argc) g_path = argv[++i];
-        else if (arg == "--output" && i + 1 < argc) out_path = argv[++i];
-        else if (arg == "--start-word" && i + 1 < argc) start_word = argv[++i];
-        else if (arg == "--single-list" && i + 1 < argc) single_list_path = argv[++i];
-        else if (arg == "--heuristic" && i + 1 < argc) {
-            std::string h = argv[++i];
-            if (h == "min_expected") heuristic = wordle::HeuristicType::MIN_EXPECTED;
-            else if (h == "entropy") heuristic = wordle::HeuristicType::ENTROPY;
-            else {
-                std::cerr << "Unknown heuristic: " << h << " (use 'entropy' or 'min_expected')" << std::endl;
-                return 1;
-            }
-        }
-        else if (arg == "--verify") run_verify = true;
-    }
-    
-    if (!single_list_path.empty()) {
-        s_path = single_list_path;
-        g_path = single_list_path;
-    }
-
-    if (s_path.empty() || g_path.empty()) {
-        std::cerr << "Usage: " << argv[0] << " (--solutions <path> --guesses <path> | --single-list <path>) [--output <path>] [--start-word <word>] [--heuristic entropy|min_expected] [--verify]" << std::endl;
+  for (int i = 1; i < argc; ++i) {
+    std::string arg = argv[i];
+    if (arg == "--solutions" && i + 1 < argc)
+      s_path = argv[++i];
+    else if (arg == "--guesses" && i + 1 < argc)
+      g_path = argv[++i];
+    else if (arg == "--output" && i + 1 < argc)
+      out_path = argv[++i];
+    else if (arg == "--start-word" && i + 1 < argc)
+      start_word = argv[++i];
+    else if (arg == "--single-list" && i + 1 < argc)
+      single_list_path = argv[++i];
+    else if (arg == "--heuristic" && i + 1 < argc) {
+      std::string h = argv[++i];
+      if (h == "min_expected")
+        heuristic = wordle::HeuristicType::MIN_EXPECTED;
+      else if (h == "entropy")
+        heuristic = wordle::HeuristicType::ENTROPY;
+      else {
+        std::cerr << "Unknown heuristic: " << h
+                  << " (use 'entropy' or 'min_expected')" << std::endl;
         return 1;
-    }
+      }
+    } else if (arg == "--verify")
+      run_verify = true;
+  }
 
-    wordle::WordList words;
-    if (!words.load(s_path, g_path)) return 1;
+  if (!single_list_path.empty()) {
+    s_path = single_list_path;
+    g_path = single_list_path;
+  }
 
-    std::cout << "Loaded " << words.get_solutions().size() << " solutions." << std::endl;
-    std::cout << "Loaded " << words.get_guesses().size() << " guesses." << std::endl;
+  if (s_path.empty() || g_path.empty()) {
+    std::cerr << "Usage: " << argv[0]
+              << " (--solutions <path> --guesses <path> | --single-list "
+                 "<path>) [--output <path>] [--start-word <word>] [--heuristic "
+                 "entropy|min_expected] [--verify]"
+              << std::endl;
+    return 1;
+  }
 
-    wordle::PatternTable table;
-    std::cout << "Generating Pattern Table..." << std::endl;
-    auto start = std::chrono::high_resolution_clock::now();
-    table.generate(words.get_guesses(), words.get_solutions());
-    auto end = std::chrono::high_resolution_clock::now();
-    std::cout << "Table generated in " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
+  wordle::WordList words;
+  if (!words.load(s_path, g_path))
+    return 1;
 
-    wordle::Builder builder(words, table, start_word, heuristic);
-    std::cout << "Building Tree (Start: " << start_word << ", Heuristic: " << (heuristic == wordle::HeuristicType::ENTROPY ? "Entropy" : "MinExpected") << ")..." << std::endl;
-    start = std::chrono::high_resolution_clock::now();
-    auto root = builder.build();
-    end = std::chrono::high_resolution_clock::now();
-    std::cout << "Build time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
+  std::cout << "Loaded " << words.get_solutions().size() << " solutions."
+            << std::endl;
+  std::cout << "Loaded " << words.get_guesses().size() << " guesses."
+            << std::endl;
+
+  wordle::PatternTable table;
+  std::cout << "Generating Pattern Table..." << std::endl;
+  auto start = std::chrono::high_resolution_clock::now();
+  table.generate(words.get_guesses(), words.get_solutions());
+  auto end = std::chrono::high_resolution_clock::now();
+  std::cout << "Table generated in "
+            << std::chrono::duration_cast<std::chrono::milliseconds>(end -
+                                                                     start)
+                   .count()
+            << "ms" << std::endl;
+
+  wordle::Builder builder(words, table, start_word, heuristic);
+  std::cout << "Building Tree (Start: " << start_word << ", Heuristic: "
+            << (heuristic == wordle::HeuristicType::ENTROPY ? "Entropy"
+                                                            : "MinExpected")
+            << ")..." << std::endl;
+  start = std::chrono::high_resolution_clock::now();
+  auto root = builder.build();
+  end = std::chrono::high_resolution_clock::now();
+  std::cout << "Build time: "
+            << std::chrono::duration_cast<std::chrono::milliseconds>(end -
+                                                                     start)
+                   .count()
+            << "ms" << std::endl;
 
   if (!root) {
     std::cout << "Failed to build tree." << std::endl;
