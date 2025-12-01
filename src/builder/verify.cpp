@@ -6,6 +6,7 @@ namespace wordle {
 
 bool verify_tree(std::shared_ptr<MemoryNode> root, const WordList& words) {
     int max_depth = 0;
+    size_t total_guesses = 0;
     bool all_valid = true;
     
     const auto& solutions = words.get_solutions();
@@ -27,15 +28,11 @@ bool verify_tree(std::shared_ptr<MemoryNode> root, const WordList& words) {
             
             if (p == 242) { // GGGGG
                 // Game over.
-                // Spec implies if we guess the word, we are done.
-                // Depth is current depth.
                 found = true;
                 break;
             }
             
             if (depth >= 6) {
-                // If we haven't found it yet and depth is 6, and we just guessed WRONG (p!=242),
-                // then we failed.
                 std::cerr << "Fail: Depth limit exceeded for " << secret << " (Last guess: " << guess << ")" << std::endl;
                 all_valid = false;
                 break;
@@ -50,15 +47,18 @@ bool verify_tree(std::shared_ptr<MemoryNode> root, const WordList& words) {
             node = node->children[p];
         }
         
-        if (!found && all_valid) { // Only print if not already failed above
+        if (!found && all_valid) {
             std::cerr << "Fail: Did not find " << secret << std::endl;
             all_valid = false;
         }
         if (depth > max_depth) max_depth = depth;
+        total_guesses += depth;
     }
     
     if (all_valid) {
+        double average = static_cast<double>(total_guesses) / solutions.size();
         std::cout << "Verification Passed! Max Depth: " << max_depth << std::endl;
+        std::cout << "Average Guesses: " << average << std::endl;
     } else {
         std::cout << "Verification FAILED." << std::endl;
     }
