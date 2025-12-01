@@ -104,5 +104,20 @@ Guess 4: react (GGGGG)
 Solved in 4 guesses! (12 µs)
 ```
 
+### 5. Benchmarking
+To run the solver against all 2,315 solutions and measure aggregate performance:
+
+```bash
+./bin/wordle_solver solver_data.bin ../data/solutions.txt ../data/guesses.txt --benchmark
+```
+
+**Output:**
+```
+Benchmarking against all 2315 solutions...
+Solved 2315 games in 0.67 ms.
+Average time per game: 0.29 µs.
+Average guesses: 3.60216
+```
+
 ## Architecture
 See [DESIGN.md](DESIGN.md) for detailed architectural documentation and optimization findings.
