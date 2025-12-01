@@ -1,6 +1,9 @@
 #include "libwordle_core/patterntable.h"
 #include "libwordle_core/pattern.h"
 #include <iostream>
+#include <thread>
+#include <future>
+#include <algorithm>
 
 namespace wordle {
 
@@ -9,17 +12,33 @@ void PatternTable::generate(const std::vector<std::string>& guesses, const std::
     num_solutions_ = solutions.size();
     table_.resize(num_guesses_ * num_solutions_);
 
-    // Naive CPU generation
-    // Loop order: For better cache locality if we access by guess then solution?
-    // Access pattern is P[g][s]. 
-    // Usually we iterate over guesses for a set of solutions.
-    // So laying out as [guess][solution] (row-major) means for a fixed guess, solutions are contiguous.
-    // That is optimal for entropy calc (SIMD over solutions).
-    
-    for (size_t g = 0; g < num_guesses_; ++g) {
-        for (size_t s = 0; s < num_solutions_; ++s) {
-            table_[g * num_solutions_ + s] = calc_pattern(guesses[g], solutions[s]);
-        }
+    unsigned int num_threads = std::thread::hardware_concurrency();
+    if (num_threads == 0) num_threads = 4;
+
+    std::vector<std::future<void>> futures;
+    size_t batch_size = num_guesses_ / num_threads;
+
+    // Parallelize over guesses
+    for (unsigned int t = 0; t < num_threads; ++t) {
+        size_t start = t * batch_size;
+        size_t end = (t == num_threads - 1) ? num_guesses_ : start + batch_size;
+
+        futures.push_back(std::async(std::launch::async, [this, start, end, &guesses, &solutions]() {
+            for (size_t g = start; g < end; ++g) {
+                size_t row_offset = g * num_solutions_;
+                const auto& guess_word = guesses[g];
+                
+                // Inner loop over solutions
+                for (size_t s = 0; s < num_solutions_; ++s) {
+                    table_[row_offset + s] = calc_pattern(guess_word, solutions[s]);
+                }
+            }
+        }));
+    }
+
+    // Wait for all threads
+    for (auto& f : futures) {
+        f.get();
     }
 }
 

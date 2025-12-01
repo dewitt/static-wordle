@@ -73,9 +73,10 @@ To ensure the solution fits within 6 guesses, the builder uses a "Remaining Gues
 ## 4. Hardware Acceleration & Optimizations
 -   **Tier 1 (GPU)**: Not implemented (No CUDA hardware available).
 -   **Tier 2 (CPU Optimized)**: 
-    -   **Multithreading**: `std::async` is used to parallelize entropy calculations across all available cores.
+    -   **Parallel Pattern Table**: `PatternTable` generation is parallelized across guesses using `std::async`. Generation time reduced from ~2.5s to ~0.5s.
+    -   **Parallel Beam Search**: `std::async` is used to parallelize entropy calculations across all available cores.
     -   **Efficient Bitset Iteration**: Replaced `std::vector` allocation with direct word-level iteration and `__builtin_ctzll` (Count Trailing Zeros) to rapidly identify active solution indices.
-    -   **Result**: Build time reduced from ~60s to ~1s on ARM64.
+    -   **Result**: Total build time (table + tree) reduced from ~62s to ~1.5s on ARM64.
 -   **Tier 3 (Scalar)**: Fallback logic (superseded by Tier 2).
 
 ## 5. Modules Responsibilities
