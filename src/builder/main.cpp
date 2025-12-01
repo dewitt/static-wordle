@@ -8,10 +8,10 @@
 #include <string>
 #include <vector>
 
-int main(int argc, char **argv) {
-  std::string s_path, g_path, out_path;
-  std::string start_word = "salet";
-  bool run_verify = false;
+int main(int argc, char** argv) {
+    std::string s_path, g_path, out_path;
+    std::string start_word = "reast";
+    bool run_verify = false;
 
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];

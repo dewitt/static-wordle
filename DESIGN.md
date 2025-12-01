@@ -67,14 +67,12 @@ Guesses" ($R$) strategy:
     -   $R \ge 4$: Maximize Entropy.
     -   $R = 3$: Hybrid (Penalty if max bucket size > 5).
     -   $R = 2$: Minimax (Hard constraint: Max bucket size must be 1).
-    -   $R = 1$: Solve (Must guess the single remaining word).
-
-**Configurable Start Word:**
-The builder supports a `--start-word` argument. Experiments using 
-`scripts/find_optimal_opener.py` found that **`reast`** yields a lower 
-average guess count (3.602) compared to the canonical `salet` (3.612).
-
-**Beam Search:**
+        -   $R = 1$: Solve (Must guess the single remaining word).
+    
+    **Configurable Start Word:**
+    The builder supports a `--start-word` argument. Experiments using `scripts/find_optimal_opener.py` found that **`reast`** yields a lower average guess count (3.602) compared to the canonical `salet` (3.612). Therefore, **`reast`** is the default start word.
+    
+    **Beam Search:**
 -   For a given state, generate heuristics for all valid guesses.
 -   Try beam widths $K \in \{5, 50, \text{ALL}\}$.
 -   Process top $K$ candidates in parallel.

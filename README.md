@@ -30,20 +30,28 @@ make -j
 ## Usage
 
 ### 1. Generating the Solver Data
-The builder requires `solutions.txt` and `guesses.txt` (standard Wordle 
-lists).
-The builder will automatically verify the tree against all solutions before 
-writing the output.
+
+The builder requires `solutions.txt` and `guesses.txt` (standard Wordle lists).
+
+The builder will automatically verify the tree against all solutions before writing the output.
+
+
 
 ```bash
-# Generate solver_data.bin with default start word (salet)
-./bin/wordle_builder --solutions ../data/solutions.txt --guesses 
-../data/guesses.txt --output solver_data.bin
 
-# Generate with a custom start word (e.g., reast)
-./bin/wordle_builder --solutions ../data/solutions.txt --guesses 
-../data/guesses.txt --output solver_data.bin --start-word reast
+# Generate solver_data.bin with default start word (reast)
+
+./bin/wordle_builder --solutions ../data/solutions.txt --guesses ../data/guesses.txt --output solver_data.bin
+
+
+
+# Generate with a custom start word (e.g., salet)
+
+./bin/wordle_builder --solutions ../data/solutions.txt --guesses ../data/guesses.txt --output solver_data.bin --start-word salet
+
 ```
+
+
 
 ### 2. Finding Optimal Openers
 A Python script is provided to test various starting words to minimize the 
@@ -61,9 +69,11 @@ The solver uses the generated binary to play interactively.
 ```
 
 **Interaction:**
--   The solver suggests a word (defaults to **salet** or your chosen start 
-word).
+
+-   The solver suggests a word (defaults to **reast** or your chosen start word).
+
 -   Input the feedback from the game using characters:
+
     -   `G`: Green
     -   `Y`: Yellow
     -   `B`: Black
