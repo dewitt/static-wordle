@@ -9,6 +9,14 @@
 
 namespace wordle {
 
+static uint32_t compute_mask(const std::string& w) {
+    uint32_t mask = 0;
+    for (char c : w) {
+        mask |= (1 << (c - 'a'));
+    }
+    return mask;
+}
+
 Builder::Builder(const WordList& words, const PatternTable& table)
     : words_(words), table_(table) {
     
@@ -21,10 +29,16 @@ Builder::Builder(const WordList& words, const PatternTable& table)
         if (it != guesses.end() && *it == sol) {
             solution_to_guess_[i] = std::distance(guesses.begin(), it);
         } else {
-            // Should not happen if guesses is superset
             std::cerr << "Error: Solution " << sol << " not found in guesses!" << std::endl;
         }
     }
+    
+    // Precompute masks
+    guess_masks_.resize(guesses.size());
+    for(size_t i=0; i<guesses.size(); ++i) guess_masks_[i] = compute_mask(guesses[i]);
+    
+    solution_masks_.resize(words_.get_solutions().size());
+    for(size_t i=0; i<words_.get_solutions().size(); ++i) solution_masks_[i] = compute_mask(words_.get_solutions()[i]);
 }
 
 std::shared_ptr<MemoryNode> Builder::build() {
@@ -45,8 +59,6 @@ struct ScoredGuess {
 std::shared_ptr<MemoryNode> Builder::solve(const SolverState& candidates, int depth) {
     if (candidates.count() == 0) return nullptr;
 
-    // Check cache (Reader lock could be useful here if we were threading the tree search itself,
-    // but we are threading the heuristic calc inside a single search step).
     if (cache_.count(candidates)) return cache_.at(candidates);
 
     int R = 6 - depth;
@@ -63,15 +75,62 @@ std::shared_ptr<MemoryNode> Builder::solve(const SolverState& candidates, int de
     // Failure
     if (depth >= 6) return nullptr;
 
-    // Candidates for guessing
+    // Filter relevant guesses
     std::vector<int> candidate_guesses;
+    
+    // Compute "active mask": union of all letters in remaining candidates
+    uint32_t active_mask = 0;
+    // We can iterate indices or just words if we had them.
+    // Iterating indices is fast enough as count shrinks.
+    // Optimization: get_active_indices allocates.
+    // Use get_words() and iterate.
+    const auto& words = candidates.get_words();
+    for (size_t i = 0; i < words.size(); ++i) {
+        uint64_t w = words[i];
+        if (w == 0) continue;
+        size_t base_idx = i * 64;
+        while (w) {
+            int bit = __builtin_ctzll(w);
+            active_mask |= solution_masks_[base_idx + bit];
+            w &= (w - 1);
+        }
+    }
+    
     if (R == 1) {
         // Solve mode: Must guess one of the remaining solutions
-        auto indices = candidates.get_active_indices();
-        for (int s : indices) candidate_guesses.push_back(solution_to_guess_[s]);
+        const auto& indices = candidates.get_words();
+        for (size_t i = 0; i < indices.size(); ++i) {
+            uint64_t w = indices[i];
+            size_t base_idx = i * 64;
+            while (w) {
+                int bit = __builtin_ctzll(w);
+                candidate_guesses.push_back(solution_to_guess_[base_idx + bit]);
+                w &= (w - 1);
+            }
+        }
     } else {
-        candidate_guesses.resize(words_.get_guesses().size());
-        for (size_t i = 0; i < candidate_guesses.size(); ++i) candidate_guesses[i] = i;
+        // All relevant guesses
+        candidate_guesses.reserve(words_.get_guesses().size());
+        for (size_t i = 0; i < words_.get_guesses().size(); ++i) {
+            // Pruning: If a guess has NO letters in common with ANY candidate,
+            // it cannot possibly split them (unless by length/position, but wordle is fixed len).
+            // Actually, wait. "SIGHT" vs "NIGHT".
+            // If active mask is {N, I, G, H, T}, and we guess "ABOVE".
+            // "ABOVE" & mask is 0.
+            // "ABOVE" against "NIGHT" -> BBBBB.
+            // "ABOVE" against "SIGHT" -> BBBBB.
+            // So "ABOVE" puts everyone in the BBBBB bucket. Entropy = 0.
+            // So yes, if (guess_mask & active_mask) == 0, it yields 0 info.
+            // EXCEPT: We must be careful. 
+            // Is it possible for a word to be useful without sharing letters?
+            // No, because all outcomes will be Black.
+            // So filtering is safe.
+            
+            // NOTE: We must ensure we don't prune "salet" at root.
+            if (depth == 0 || (guess_masks_[i] & active_mask) != 0) {
+                candidate_guesses.push_back(i);
+            }
+        }
     }
 
     std::vector<ScoredGuess> scored_guesses;
@@ -86,11 +145,9 @@ std::shared_ptr<MemoryNode> Builder::solve(const SolverState& candidates, int de
             scored_guesses.push_back({idx, 100.0, 1});
         }
     } else {
-        // PARALLEL HEURISTIC CALCULATION
         unsigned int num_threads = std::thread::hardware_concurrency();
         if (num_threads == 0) num_threads = 4;
         
-        // If trivial workload, don't spin up threads
         if (candidate_guesses.size() < 100) {
              for (int g : candidate_guesses) {
                 auto h = compute_heuristic(candidates, g, table_);
@@ -129,13 +186,11 @@ std::shared_ptr<MemoryNode> Builder::solve(const SolverState& candidates, int de
             }
         }
         
-        // Sort
         std::sort(scored_guesses.begin(), scored_guesses.end(), [](const auto& a, const auto& b) {
             return a.entropy > b.entropy;
         });
     }
 
-    // Beam Search
     int K_values[] = {5, 50, 100000};
     
     for (int K : K_values) {
@@ -148,12 +203,18 @@ std::shared_ptr<MemoryNode> Builder::solve(const SolverState& candidates, int de
             
             bool possible = true;
             
-            // Group by pattern
-            // This is fast enough scalar
             std::vector<std::vector<int>> bins(243);
-            auto active = candidates.get_active_indices();
-            for (int s : active) {
-                bins[table_.get_pattern(g_idx, s)].push_back(s);
+            auto active = candidates.get_words();
+            for (size_t i = 0; i < active.size(); ++i) {
+                uint64_t w = active[i];
+                if (w == 0) continue;
+                size_t base_idx = i * 64;
+                while (w) {
+                    int bit = __builtin_ctzll(w);
+                    size_t s = base_idx + bit;
+                    bins[table_.get_pattern(g_idx, s)].push_back(s);
+                    w &= (w - 1);
+                }
             }
             
             for (int p = 0; p < 243; ++p) {

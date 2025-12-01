@@ -32,6 +32,10 @@ private:
     
     std::unordered_map<SolverState, std::shared_ptr<MemoryNode>> cache_;
     std::vector<int> solution_to_guess_;
+    
+    // Optimization: Character bitmasks for pruning
+    std::vector<uint32_t> guess_masks_;
+    std::vector<uint32_t> solution_masks_;
 
     // Helper to get next state given a guess and pattern
     SolverState filter_candidates(const SolverState& current, int guess_idx, uint8_t pattern);

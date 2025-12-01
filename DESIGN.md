@@ -78,6 +78,7 @@ To ensure the solution fits within 6 guesses, the builder uses a "Remaining Gues
     -   **Parallel Beam Search**: `std::async` is used to parallelize entropy calculations across all available cores.
     -   **Efficient Bitset Iteration**: Replaced `std::vector` allocation with direct word-level iteration and `__builtin_ctzll` (Count Trailing Zeros).
     -   **Entropy Lookup Table**: Replaced expensive `std::log2` calls with a precomputed lookup table for $x \log_2 x$.
+    -   **Active Character Pruning**: Implemented filtering to skip guesses sharing no letters with active candidates (marginal impact on small datasets).
     -   **Result**: 
         -   Pattern Table Generation: ~2.5s $\to$ ~0.3s.
         -   Tree Build Time: ~60s $\to$ ~1.0s.
