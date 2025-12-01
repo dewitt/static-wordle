@@ -5,5 +5,6 @@ add_executable(wordle_builder
     builder.cpp
     writer.cpp
     verify.cpp
+    threadpool.cpp
 )
 target_link_libraries(wordle_builder PRIVATE wordle_core)

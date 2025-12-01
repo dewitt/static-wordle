@@ -1,5 +1,6 @@
 #include "builder.h"
 #include "entropy.h"
+#include "threadpool.h"
 #include <algorithm>
 #include <iostream>
 #include <vector>
@@ -154,7 +155,7 @@ std::shared_ptr<MemoryNode> Builder::solve(const SolverState& candidates, int de
                 size_t start = t * chunk_size;
                 size_t end = (t == num_threads - 1) ? candidate_guesses.size() : start + chunk_size;
                 
-                futures.push_back(std::async(std::launch::async, [start, end, &candidate_guesses, &candidates, this, R]() {
+                futures.push_back(get_thread_pool().enqueue([start, end, &candidate_guesses, &candidates, this, R]() {
                     std::vector<ScoredGuess> local_results;
                     local_results.reserve(end - start);
                     for (size_t i = start; i < end; ++i) {
@@ -182,15 +183,60 @@ std::shared_ptr<MemoryNode> Builder::solve(const SolverState& candidates, int de
         }
         
         // Sort: Entropy -> Descending, MinExpected -> Ascending
-        if (heuristic_ == HeuristicType::ENTROPY) {
-            std::sort(scored_guesses.begin(), scored_guesses.end(), [](const auto& a, const auto& b) {
+        // Optimization: Use partial_sort to only sort top K candidates if we have more than K
+        int max_k = 5; // Default for first pass
+        // Actually, the loop below iterates K_values. 
+        // We want to sort enough for the largest K we might use?
+        // K_values are {5, 50, 100000}.
+        // If we fail K=5, we need top 50.
+        // If we fail K=50, we need ALL.
+        // Since K=ALL is possible, partial_sort doesn't help if we fail the small beam.
+        // BUT: K=5 succeeds 99% of the time.
+        // So optimizing for K=5 is worth it?
+        // If we partial_sort(5), then fail, we have to re-sort for 50.
+        // That seems complex.
+        // However, we can just sort for the max reasonable K? 
+        // Or just full sort.
+        // Actually, if we partially sort for 5, then loop needs 5. 
+        // If loop fails, we come back... but we already returned or recursed?
+        // Wait, the K loop is *inside* solve.
+        // If K=5 fails, we proceed to K=50 loop.
+        // So we need the vector to be sorted up to 50.
+        // If we only sort 5, the rest are heap/undefined.
+        
+        // Let's stick to std::sort for correctness across K retries, 
+        // OR we can implement an incremental sort strategy?
+        // Too complex. 
+        // Let's look at the K values again: 5, 50, 100000.
+        // Most of the time K=5 works.
+        // If we fully sort, it's safe.
+        // Is sorting 13000 items slow? 
+        // 13000 * 14 = 180k comparisons. Microseconds.
+        // The overhead of re-sorting or managing state is likely higher.
+        
+        // Decision: Stick to std::sort. It's robust and fast enough for N=13000.
+        // partial_sort for 13000 items is basically sort.
+        
+        // ACTUALLY: The "Heuristics" loop in the spec says:
+        // "Iterate through Beam Widths K in {5, 50, ALL}".
+        // We generate heuristics ONCE.
+        // Then we try K=5.
+        // If fail, try K=50.
+        
+        // If we want to optimize, we could `partial_sort` the first 5.
+        // If that fails, `partial_sort` the next 45 (total 50).
+        // If that fails, sort the rest.
+        
+        // Let's try just sorting. The user asked "Can we build any faster?".
+        // Maybe ThreadPool is the real answer.
+        
+        std::sort(scored_guesses.begin(), scored_guesses.end(), [this](const auto& a, const auto& b) {
+            if (heuristic_ == HeuristicType::ENTROPY) {
                 return a.score > b.score;
-            });
-        } else {
-            std::sort(scored_guesses.begin(), scored_guesses.end(), [](const auto& a, const auto& b) {
+            } else {
                 return a.score < b.score;
-            });
-        }
+            }
+        });
     }
 
     int K_values[] = {5, 50, 100000};
