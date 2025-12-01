@@ -14,6 +14,7 @@ struct SolverNode {
 
 class Solver {
 public:
+  Solver() = default;
   bool load(const std::string &path);
 
   int get_root_index() const;
@@ -22,12 +23,18 @@ public:
 
   uint64_t get_checksum() const { return checksum_; }
 
+    // Delete copy constructor and copy assignment operator
+  Solver(const Solver &) = delete;
+  Solver &operator=(const Solver &) = delete;
+
   ~Solver();
 
 private:
   const uint8_t *mapped_data_ = nullptr;
   size_t mapped_size_ = 0;
   int fd_ = -1;
+
+  void cleanup_mmap_resources();
   const SolverNode *nodes_ = nullptr;
   const uint32_t *children_ = nullptr;
   int num_nodes_ = 0;

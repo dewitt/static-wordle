@@ -42,12 +42,14 @@ bool Solver::load(const std::string &path) {
     std::cerr << "Failed to mmap file: " << path << std::endl;
     close(fd_);
     fd_ = -1;
+    mapped_data_ = nullptr;
     return false;
   }
 
   const Header *h = reinterpret_cast<const Header *>(mapped_data_);
   if (h->magic != 0x5752444C) {
     std::cerr << "Invalid Magic" << std::endl;
+    cleanup_mmap_resources();
     return false;
   }
 
@@ -59,6 +61,7 @@ bool Solver::load(const std::string &path) {
   // Check if nodes_ array fits
   if (nodes_offset + num_nodes_ * sizeof(SolverNode) > mapped_size_) {
     std::cerr << "File too small for nodes" << std::endl;
+    cleanup_mmap_resources();
     return false;
   }
   nodes_ = reinterpret_cast<const SolverNode *>(mapped_data_ + nodes_offset);
@@ -67,6 +70,7 @@ bool Solver::load(const std::string &path) {
   // Check if children_ array fits
   if (children_offset + num_nodes_ * 243 * sizeof(uint32_t) > mapped_size_) {
     std::cerr << "File too small for children" << std::endl;
+    cleanup_mmap_resources();
     return false;
   }
   children_ =
@@ -75,6 +79,7 @@ bool Solver::load(const std::string &path) {
   // Check if root_index_ is in range
   if (root_index_ >= num_nodes_) {
     std::cerr << "Root index out of bounds" << std::endl;
+    cleanup_mmap_resources();
     return false;
   }
 
@@ -91,13 +96,18 @@ int Solver::get_next_node(int node_index, uint8_t pattern) const {
 
 } // namespace wordle
 
-wordle::Solver::~Solver() {
-  if (mapped_data_ != nullptr) {
+void wordle::Solver::cleanup_mmap_resources() {
+  if (mapped_data_ != nullptr && mapped_data_ != MAP_FAILED) {
     munmap((void *)mapped_data_, mapped_size_);
-    mapped_data_ = nullptr;
   }
+  mapped_data_ = nullptr;
+  mapped_size_ = 0;
   if (fd_ != -1) {
     close(fd_);
-    fd_ = -1;
   }
+  fd_ = -1;
+}
+
+wordle::Solver::~Solver() {
+  cleanup_mmap_resources();
 }

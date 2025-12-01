@@ -34,7 +34,7 @@ The artifact is a little-endian packed binary file designed for direct `mmap`.
 **Header:**
 -   `Magic`: "WRDL" (0x5752444C)
 -   `Version`: 1
--   `ListChecksum`: FNV1a-64 like mix of the sorted word list.
+-   `ListChecksum`: FNV1a-64 like mix of the sorted combined guesses and solutions word lists.
 -   `NumNodes`: Total nodes in the tree.
 -   `RootIndex`: Index of the starting node.
 
