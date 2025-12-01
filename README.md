@@ -33,40 +33,50 @@ make -j
 ## Usage
 
 ### 1. Generating the Solver Data
-The builder requires `solutions.txt` and `guesses.txt` (standard Wordle lists). 
+The builder requires `solutions.txt` and `guesses.txt` (standard Wordle 
+lists). 
 It generates a binary file (`solver_data.bin`) used by the runtime solver.
 
 **Standard Build (Default start word: `trace`):**
 ```bash
-./bin/wordle_builder --solutions ../data/solutions.txt --guesses ../data/guesses.txt --output solver_data.bin
+./bin/wordle_builder --solutions ../data/solutions.txt --guesses 
+../data/guesses.txt --output solver_data.bin
 ```
 
 **Strategy Note:**
-The default start word is **`trace`** (Average guesses: 3.606). While **`reast`** offers a slightly lower average (3.602), it is not a valid solution word. `trace` is chosen because it allows for a lucky 1-guess victory.
+The default start word is **`trace`** (Average guesses: 3.606). While 
+**`reast`** offers a slightly lower average (3.602), it is not a valid 
+solution word. `trace` is chosen because it allows for a lucky 1-guess 
+victory.
 
 **Custom Start Word:**
 ```bash
-./bin/wordle_builder --solutions ../data/solutions.txt --guesses ../data/guesses.txt --output solver_data.bin --start-word reast
+./bin/wordle_builder --solutions ../data/solutions.txt --guesses 
+../data/guesses.txt --output solver_data.bin --start-word reast
 ```
 
 **Hard Mode (Single list for solutions and guesses):**
 ```bash
-./bin/wordle_builder --single-list ../data/guesses.txt --output solver_data.bin
+./bin/wordle_builder --single-list ../data/guesses.txt --output 
+solver_data.bin
 ```
 
 **Advanced Options:**
--   `--heuristic <type>`: Choose the splitting strategy. Options: `entropy` (default), `min_expected`.
+-   `--heuristic <type>`: Choose the splitting strategy. Options: `entropy` 
+(default), `min_expected`.
 
 ### 2. Analysis Tools
 
 **Rank Openers by Entropy:**
-Quickly calculate the Shannon entropy for all words to identify strong start word candidates.
+Quickly calculate the Shannon entropy for all words to identify strong start 
+word candidates.
 ```bash
 ./bin/rank_openers ../data/solutions.txt ../data/guesses.txt 100 > top_100.txt
 ```
 
 **Find Optimal Opener:**
-A Python script that runs the builder against a list of words to find the one with the lowest average guess count.
+A Python script that runs the builder against a list of words to find the one 
+with the lowest average guess count.
 ```bash
 # Test default list
 python3 ../scripts/find_optimal_opener.py
@@ -83,7 +93,8 @@ The solver uses the generated binary to play interactively.
 ```
 
 **Interaction:**
--   The solver suggests a word (defaults to **trace** or your chosen start word).
+-   The solver suggests a word (defaults to **trace** or your chosen start 
+word).
 -   Input the feedback from the game using characters:
     -   `G`: Green
     -   `Y`: Yellow
@@ -94,24 +105,25 @@ The solver uses the generated binary to play interactively.
 To automatically simulate the game for a specific solution word:
 
 ```bash
-./bin/wordle_solver solver_data.bin --solve react ../data/solutions.txt ../data/guesses.txt
+./bin/wordle_solver solver_data.bin --solve react ../data/solutions.txt 
+../data/guesses.txt
 ```
 
 **Output:**
 ```
 Solving for target: react
-Guess 1: reast (YYBBY)
-Guess 2: crate (BGBBG)
-Guess 3: tract (BGBGG)
-Guess 4: react (GGGGG)
-Solved in 4 guesses! (12 µs)
+Guess 1: trace (YYGGY)
+Guess 2: react (GGGGG)
+Solved in 2 guesses! (8 µs)
 ```
 
 ### 5. Benchmarking
-To run the solver against all 2,315 solutions and measure aggregate performance:
+To run the solver against all 2,315 solutions and measure aggregate 
+performance:
 
 ```bash
-./bin/wordle_solver solver_data.bin ../data/solutions.txt ../data/guesses.txt --benchmark
+./bin/wordle_solver solver_data.bin ../data/solutions.txt ../data/guesses.txt 
+--benchmark
 ```
 
 **Output:**
@@ -123,4 +135,5 @@ Average guesses: 3.60216
 ```
 
 ## Architecture
-See [DESIGN.md](DESIGN.md) for detailed architectural documentation and optimization findings.
+See [DESIGN.md](DESIGN.md) for detailed architectural documentation and 
+optimization findings.
