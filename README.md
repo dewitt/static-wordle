@@ -39,8 +39,8 @@ It generates a binary file (`solver_data.bin`) used by the runtime solver.
 
 **Standard Build (Default start word: `trace`):**
 ```bash
-./bin/wordle_builder --solutions ../data/solutions.txt --guesses 
-../data/guesses.txt --output solver_data.bin
+./bin/wordle_builder --solutions ../data/solutions.txt \
+  --guesses ../data/guesses.txt --output solver_data.bin
 ```
 
 **Strategy Note:**
@@ -51,14 +51,15 @@ victory.
 
 **Custom Start Word:**
 ```bash
-./bin/wordle_builder --solutions ../data/solutions.txt --guesses 
-../data/guesses.txt --output solver_data.bin --start-word reast
+./bin/wordle_builder --solutions ../data/solutions.txt \
+  --guesses ../data/guesses.txt --output solver_data.bin \
+  --start-word reast
 ```
 
 **Hard Mode (Single list for solutions and guesses):**
 ```bash
-./bin/wordle_builder --single-list ../data/guesses.txt --output 
-solver_data.bin
+./bin/wordle_builder --single-list ../data/guesses.txt \
+  --output solver_data.bin
 ```
 
 **Advanced Options:**
@@ -105,8 +106,8 @@ word).
 To automatically simulate the game for a specific solution word:
 
 ```bash
-./bin/wordle_solver solver_data.bin --solve react ../data/solutions.txt 
-../data/guesses.txt
+./bin/wordle_solver solver_data.bin --solve react \
+  ../data/solutions.txt ../data/guesses.txt
 ```
 
 **Output:**
@@ -122,8 +123,8 @@ To run the solver against all 2,315 solutions and measure aggregate
 performance:
 
 ```bash
-./bin/wordle_solver solver_data.bin ../data/solutions.txt ../data/guesses.txt 
---benchmark
+./bin/wordle_solver solver_data.bin \
+  ../data/solutions.txt ../data/guesses.txt --benchmark
 ```
 
 **Output:**
