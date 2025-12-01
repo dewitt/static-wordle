@@ -68,10 +68,21 @@ Guesses" (R) strategy:
     -   `R = 2`: Minimax (Hard constraint: Max bucket size must be 1).
         -   `R = 1`: Solve (Must guess the single remaining word).
     
-    **Configurable Start Word:**
-    The builder supports a `--start-word` argument. Experiments using `scripts/find_optimal_opener.py` found that **`reast`** yields a lower average guess count (3.602) compared to the canonical `salet` (3.612). Therefore, **`reast`** is the default start word.
+        **Configurable Start Word:**
     
-    **Beam Search:**
+        The builder supports a `--start-word` argument. Experiments using
+    
+        `scripts/find_optimal_opener.py` found that **`reast`** yields the lowest
+    
+        average guess count (3.602). However, **`trace`** (3.606) is chosen as
+    
+        the default because it is a valid solution word, allowing for a 1-guess
+    
+        victory.
+    
+    
+    
+        **Beam Search:**
 -   For a given state, generate heuristics for all valid guesses.
 -   Try beam widths `K` in `{5, 50, ALL}`.
 -   Process top `K` candidates in parallel.

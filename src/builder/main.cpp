@@ -10,7 +10,9 @@
 
 int main(int argc, char** argv) {
     std::string s_path, g_path, out_path;
-    std::string start_word = "reast";
+    // Default to "trace" (avg 3.605) instead of "reast" (avg 3.602) because
+    // "trace" is a valid solution, offering a chance for a 1-guess win.
+    std::string start_word = "trace";
     bool run_verify = false;
     std::string single_list_path;
     wordle::HeuristicType heuristic = wordle::HeuristicType::ENTROPY;

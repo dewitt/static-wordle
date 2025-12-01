@@ -36,14 +36,17 @@ make -j
 The builder requires `solutions.txt` and `guesses.txt` (standard Wordle lists). 
 It generates a binary file (`solver_data.bin`) used by the runtime solver.
 
-**Standard Build (Default start word: `reast`):**
+**Standard Build (Default start word: `trace`):**
 ```bash
 ./bin/wordle_builder --solutions ../data/solutions.txt --guesses ../data/guesses.txt --output solver_data.bin
 ```
 
+**Strategy Note:**
+The default start word is **`trace`** (Average guesses: 3.606). While **`reast`** offers a slightly lower average (3.602), it is not a valid solution word. `trace` is chosen because it allows for a lucky 1-guess victory.
+
 **Custom Start Word:**
 ```bash
-./bin/wordle_builder --solutions ../data/solutions.txt --guesses ../data/guesses.txt --output solver_data.bin --start-word salet
+./bin/wordle_builder --solutions ../data/solutions.txt --guesses ../data/guesses.txt --output solver_data.bin --start-word reast
 ```
 
 **Hard Mode (Single list for solutions and guesses):**
@@ -80,7 +83,7 @@ The solver uses the generated binary to play interactively.
 ```
 
 **Interaction:**
--   The solver suggests a word.
+-   The solver suggests a word (defaults to **trace** or your chosen start word).
 -   Input the feedback from the game using characters:
     -   `G`: Green
     -   `Y`: Yellow
