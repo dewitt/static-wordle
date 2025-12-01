@@ -3,6 +3,7 @@
 #include "libwordle_core/patterntable.h"
 #include "libwordle_core/wordlist.h"
 #include "state.h"
+#include <array>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -14,9 +15,7 @@ struct MemoryNode {
   bool is_leaf = false;
   // Children: Index by pattern (0-242).
   // If nullptr, that pattern is impossible.
-  std::vector<std::shared_ptr<MemoryNode>> children;
-
-  MemoryNode() : children(243, nullptr) {}
+  std::array<std::shared_ptr<MemoryNode>, 243> children;
 };
 
 class Builder {

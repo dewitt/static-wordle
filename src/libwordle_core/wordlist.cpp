@@ -58,12 +58,10 @@ bool WordList::load(const std::string &solutions_path,
     return false;
 
   // Checksum based on guesses (which should be the superset or at least the
-  // exhaustive list used for indexing) The spec says "Checksum of sorted word
-  // list". Usually this means the master list (guesses). But since solutions
-  // are distinct, maybe I should combine? The binary header has ONE checksum.
-  // It must verify the context is identical. I will hash the GUESSES list, as
-  // that defines the indices.
-  checksum_ = fnv1a_64(guesses_);
+  std::vector<std::string> combined_words = guesses_;
+  combined_words.insert(combined_words.end(), solutions_.begin(), solutions_.end());
+  std::sort(combined_words.begin(), combined_words.end());
+  checksum_ = fnv1a_64(combined_words);
 
   return true;
 }

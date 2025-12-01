@@ -45,6 +45,9 @@ Builder::Builder(const WordList &words, const PatternTable &table,
   solution_masks_.resize(words_.get_solutions().size());
   for (size_t i = 0; i < words_.get_solutions().size(); ++i)
     solution_masks_[i] = compute_mask(words_.get_solutions()[i]);
+
+  // Reserve capacity for memoization cache
+  cache_.reserve(words_.get_solutions().size() * 3);
 }
 
 std::shared_ptr<MemoryNode> Builder::build() {
@@ -67,8 +70,9 @@ std::shared_ptr<MemoryNode> Builder::solve(const SolverState &candidates,
   if (candidates.count() == 0)
     return nullptr;
 
-  if (cache_.count(candidates))
-    return cache_.at(candidates);
+  auto it = cache_.find(candidates);
+  if (it != cache_.end())
+    return it->second;
 
   int R = 6 - depth;
 
@@ -88,30 +92,18 @@ std::shared_ptr<MemoryNode> Builder::solve(const SolverState &candidates,
   // Filter relevant guesses
   std::vector<int> candidate_guesses;
 
+  // Hoist active indices computation
+  std::vector<int> active_solution_indices = candidates.get_active_indices();
+
   uint32_t active_mask = 0;
-  const auto &words = candidates.get_words();
-  for (size_t i = 0; i < words.size(); ++i) {
-    uint64_t w = words[i];
-    if (w == 0)
-      continue;
-    size_t base_idx = i * 64;
-    while (w) {
-      int bit = __builtin_ctzll(w);
-      active_mask |= solution_masks_[base_idx + bit];
-      w &= (w - 1);
-    }
+  for (int sol_idx : active_solution_indices) {
+    active_mask |= solution_masks_[sol_idx];
   }
 
   if (R == 1) {
-    const auto &indices = candidates.get_words();
-    for (size_t i = 0; i < indices.size(); ++i) {
-      uint64_t w = indices[i];
-      size_t base_idx = i * 64;
-      while (w) {
-        int bit = __builtin_ctzll(w);
-        candidate_guesses.push_back(solution_to_guess_[base_idx + bit]);
-        w &= (w - 1);
-      }
+    candidate_guesses.reserve(active_solution_indices.size());
+    for (int sol_idx : active_solution_indices) {
+      candidate_guesses.push_back(solution_to_guess_[sol_idx]);
     }
   } else {
     candidate_guesses.reserve(words_.get_guesses().size());
@@ -273,18 +265,8 @@ std::shared_ptr<MemoryNode> Builder::solve(const SolverState &candidates,
       bool possible = true;
 
       std::vector<std::vector<int>> bins(243);
-      auto active = candidates.get_words();
-      for (size_t i = 0; i < active.size(); ++i) {
-        uint64_t w = active[i];
-        if (w == 0)
-          continue;
-        size_t base_idx = i * 64;
-        while (w) {
-          int bit = __builtin_ctzll(w);
-          size_t s = base_idx + bit;
-          bins[table_.get_pattern(g_idx, s)].push_back(s);
-          w &= (w - 1);
-        }
+      for (int s : active_solution_indices) {
+        bins[table_.get_pattern(g_idx, s)].push_back(s);
       }
 
       for (int p = 0; p < 243; ++p) {

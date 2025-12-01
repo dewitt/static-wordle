@@ -1,4 +1,6 @@
 #pragma once
+#include <sys/mman.h>
+#include <sys/stat.h>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -20,8 +22,12 @@ public:
 
   uint64_t get_checksum() const { return checksum_; }
 
+  ~Solver();
+
 private:
-  std::vector<uint8_t> data_;
+  const uint8_t *mapped_data_ = nullptr;
+  size_t mapped_size_ = 0;
+  int fd_ = -1;
   const SolverNode *nodes_ = nullptr;
   const uint32_t *children_ = nullptr;
   int num_nodes_ = 0;

@@ -17,7 +17,7 @@ plays the game in `O(1)` time per move.
 solutions remaining.
 -   **Implementation**: A fixed-size bitset (mapping 1:1 to the sorted 
 `solutions.txt`).
--   **Key**: `XXHash64` of the bitset is used as the canonical key for 
+-   **Key**: `FNV1a-64 like mix` of the bitset is used as the canonical key for 
 memoization.
 
 ### 2.2 Pattern Matrix (P)
@@ -34,7 +34,7 @@ The artifact is a little-endian packed binary file designed for direct `mmap`.
 **Header:**
 -   `Magic`: "WRDL" (0x5752444C)
 -   `Version`: 1
--   `ListChecksum`: XXHash64 of the sorted word list.
+-   `ListChecksum`: FNV1a-64 like mix of the sorted word list.
 -   `NumNodes`: Total nodes in the tree.
 -   `RootIndex`: Index of the starting node.
 
