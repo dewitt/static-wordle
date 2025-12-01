@@ -21,7 +21,7 @@ struct MemoryNode {
 class Builder {
 public:
   Builder(const WordList &words, const PatternTable &table,
-          const std::string &start_word = "salet");
+          const std::string &start_word);
 
   std::shared_ptr<MemoryNode> build();
 
