@@ -10,6 +10,7 @@
 
 int main(int argc, char** argv) {
     std::string s_path, g_path, out_path;
+    std::string start_word = "salet";
     bool run_verify = false;
 
     for (int i = 1; i < argc; ++i) {
@@ -17,11 +18,12 @@ int main(int argc, char** argv) {
         if (arg == "--solutions" && i + 1 < argc) s_path = argv[++i];
         else if (arg == "--guesses" && i + 1 < argc) g_path = argv[++i];
         else if (arg == "--output" && i + 1 < argc) out_path = argv[++i];
+        else if (arg == "--start-word" && i + 1 < argc) start_word = argv[++i];
         else if (arg == "--verify") run_verify = true;
     }
     
     if (s_path.empty() || g_path.empty()) {
-        std::cerr << "Usage: " << argv[0] << " --solutions <path> --guesses <path> [--output <path>] [--verify]" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " --solutions <path> --guesses <path> [--output <path>] [--start-word <word>] [--verify]" << std::endl;
         return 1;
     }
 
@@ -38,8 +40,8 @@ int main(int argc, char** argv) {
     auto end = std::chrono::high_resolution_clock::now();
     std::cout << "Table generated in " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
 
-    wordle::Builder builder(words, table);
-    std::cout << "Building Tree..." << std::endl;
+    wordle::Builder builder(words, table, start_word);
+    std::cout << "Building Tree (Start: " << start_word << ")..." << std::endl;
     start = std::chrono::high_resolution_clock::now();
     auto root = builder.build();
     end = std::chrono::high_resolution_clock::now();

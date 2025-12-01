@@ -17,8 +17,8 @@ static uint32_t compute_mask(const std::string& w) {
     return mask;
 }
 
-Builder::Builder(const WordList& words, const PatternTable& table)
-    : words_(words), table_(table) {
+Builder::Builder(const WordList& words, const PatternTable& table, const std::string& start_word)
+    : words_(words), table_(table), start_word_(start_word) {
     
     // Precompute solution -> guess mapping
     solution_to_guess_.resize(words_.get_solutions().size());
@@ -80,10 +80,6 @@ std::shared_ptr<MemoryNode> Builder::solve(const SolverState& candidates, int de
     
     // Compute "active mask": union of all letters in remaining candidates
     uint32_t active_mask = 0;
-    // We can iterate indices or just words if we had them.
-    // Iterating indices is fast enough as count shrinks.
-    // Optimization: get_active_indices allocates.
-    // Use get_words() and iterate.
     const auto& words = candidates.get_words();
     for (size_t i = 0; i < words.size(); ++i) {
         uint64_t w = words[i];
@@ -112,21 +108,7 @@ std::shared_ptr<MemoryNode> Builder::solve(const SolverState& candidates, int de
         // All relevant guesses
         candidate_guesses.reserve(words_.get_guesses().size());
         for (size_t i = 0; i < words_.get_guesses().size(); ++i) {
-            // Pruning: If a guess has NO letters in common with ANY candidate,
-            // it cannot possibly split them (unless by length/position, but wordle is fixed len).
-            // Actually, wait. "SIGHT" vs "NIGHT".
-            // If active mask is {N, I, G, H, T}, and we guess "ABOVE".
-            // "ABOVE" & mask is 0.
-            // "ABOVE" against "NIGHT" -> BBBBB.
-            // "ABOVE" against "SIGHT" -> BBBBB.
-            // So "ABOVE" puts everyone in the BBBBB bucket. Entropy = 0.
-            // So yes, if (guess_mask & active_mask) == 0, it yields 0 info.
-            // EXCEPT: We must be careful. 
-            // Is it possible for a word to be useful without sharing letters?
-            // No, because all outcomes will be Black.
-            // So filtering is safe.
-            
-            // NOTE: We must ensure we don't prune "salet" at root.
+            // NOTE: We must ensure we don't prune the start word at root.
             if (depth == 0 || (guess_masks_[i] & active_mask) != 0) {
                 candidate_guesses.push_back(i);
             }
@@ -136,15 +118,21 @@ std::shared_ptr<MemoryNode> Builder::solve(const SolverState& candidates, int de
     std::vector<ScoredGuess> scored_guesses;
     scored_guesses.reserve(candidate_guesses.size());
 
-    // Force "salet" at depth 0
+    // Force start_word at depth 0
     if (depth == 0) {
-        const std::string start_word = "salet";
-        auto it = std::lower_bound(words_.get_guesses().begin(), words_.get_guesses().end(), start_word);
-        if (it != words_.get_guesses().end() && *it == start_word) {
-            int idx = std::distance(words_.get_guesses().begin(), it);
-            scored_guesses.push_back({idx, 100.0, 1});
+        if (!start_word_.empty()) {
+            auto it = std::lower_bound(words_.get_guesses().begin(), words_.get_guesses().end(), start_word_);
+            if (it != words_.get_guesses().end() && *it == start_word_) {
+                int idx = std::distance(words_.get_guesses().begin(), it);
+                scored_guesses.push_back({idx, 100.0, 1});
+            } else {
+                std::cerr << "Warning: Start word '" << start_word_ << "' not found in guesses." << std::endl;
+            }
+        } else {
+             // Fallback logic if needed
         }
     } else {
+
         unsigned int num_threads = std::thread::hardware_concurrency();
         if (num_threads == 0) num_threads = 4;
         

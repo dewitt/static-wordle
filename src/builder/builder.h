@@ -20,7 +20,7 @@ struct MemoryNode {
 
 class Builder {
 public:
-    Builder(const WordList& words, const PatternTable& table);
+    Builder(const WordList& words, const PatternTable& table, const std::string& start_word = "salet");
     
     std::shared_ptr<MemoryNode> build();
 
@@ -29,6 +29,7 @@ private:
 
     const WordList& words_;
     const PatternTable& table_;
+    std::string start_word_;
     
     std::unordered_map<SolverState, std::shared_ptr<MemoryNode>> cache_;
     std::vector<int> solution_to_guess_;
