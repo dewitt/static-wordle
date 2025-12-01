@@ -7,12 +7,15 @@ runtime lookups.
 
 ## Features
 -   **Guaranteed Win**: Mathematically proven strategy for all 2,315 
-solutions.
+    solutions (Max depth 5 with default settings).
 -   **Constant Time**: Runtime solver performs simple array lookups.
--   **High-Performance Builder**: Uses parallel iterative deepening beam 
-search, AVX/SIMD optimizations, and optional CUDA acceleration.
+-   **High-Performance Builder**: Optimized C++17 implementation using 
+    multithreading, integer-based pattern calculation, and efficient bitset 
+    manipulation. Builds the full tree in ~1.1 seconds on standard hardware.
 -   **Verifiable**: Automatically verifies the solution tree against all 
-2,315 solutions before generating the binary.
+    2,315 solutions before generating the binary.
+-   **Configurable Strategy**: Supports custom start words and pluggable 
+    heuristics.
 
 ## Building
 
@@ -30,35 +33,43 @@ make -j
 ## Usage
 
 ### 1. Generating the Solver Data
+The builder requires `solutions.txt` and `guesses.txt` (standard Wordle lists). 
+It generates a binary file (`solver_data.bin`) used by the runtime solver.
 
-The builder requires `solutions.txt` and `guesses.txt` (standard Wordle lists).
-
-The builder will automatically verify the tree against all solutions before writing the output.
-
-
-
+**Standard Build (Default start word: `reast`):**
 ```bash
-
-# Generate solver_data.bin with default start word (reast)
-
 ./bin/wordle_builder --solutions ../data/solutions.txt --guesses ../data/guesses.txt --output solver_data.bin
-
-
-
-# Generate with a custom start word (e.g., salet)
-
-./bin/wordle_builder --solutions ../data/solutions.txt --guesses ../data/guesses.txt --output solver_data.bin --start-word salet
-
 ```
 
-
-
-### 2. Finding Optimal Openers
-A Python script is provided to test various starting words to minimize the 
-average guess count.
-
+**Custom Start Word:**
 ```bash
+./bin/wordle_builder --solutions ../data/solutions.txt --guesses ../data/guesses.txt --output solver_data.bin --start-word salet
+```
+
+**Hard Mode (Single list for solutions and guesses):**
+```bash
+./bin/wordle_builder --single-list ../data/guesses.txt --output solver_data.bin
+```
+
+**Advanced Options:**
+-   `--heuristic <type>`: Choose the splitting strategy. Options: `entropy` (default), `min_expected`.
+
+### 2. Analysis Tools
+
+**Rank Openers by Entropy:**
+Quickly calculate the Shannon entropy for all words to identify strong start word candidates.
+```bash
+./bin/rank_openers ../data/solutions.txt ../data/guesses.txt 100 > top_100.txt
+```
+
+**Find Optimal Opener:**
+A Python script that runs the builder against a list of words to find the one with the lowest average guess count.
+```bash
+# Test default list
 python3 ../scripts/find_optimal_opener.py
+
+# Test words from a file (e.g., output of rank_openers)
+python3 ../scripts/find_optimal_opener.py top_100.txt
 ```
 
 ### 3. Running the Solver
@@ -69,32 +80,29 @@ The solver uses the generated binary to play interactively.
 ```
 
 **Interaction:**
-
--   The solver suggests a word (defaults to **reast** or your chosen start word).
-
+-   The solver suggests a word.
 -   Input the feedback from the game using characters:
-
     -   `G`: Green
     -   `Y`: Yellow
     -   `B`: Black
     -   Example: `GYBBG`
 
-### 3. Non-Interactive Mode
-To see the solution path for a specific word automatically:
+### 4. Non-Interactive Mode (Simulation)
+To automatically simulate the game for a specific solution word:
 
 ```bash
-./bin/wordle_solver solver_data.bin --solve react ../data/solutions.txt 
-../data/guesses.txt
+./bin/wordle_solver solver_data.bin --solve react ../data/solutions.txt ../data/guesses.txt
 ```
 
-Output:
+**Output:**
 ```
 Solving for target: react
-Guess 1: salet (BYBYG)
-Guess 2: crena (YYYBY)
-Guess 3: react (GGGGG)
-Solved in 3 guesses! (6 µs)
+Guess 1: reast (YYBBY)
+Guess 2: crate (BGBBG)
+Guess 3: tract (BGBGG)
+Guess 4: react (GGGGG)
+Solved in 4 guesses! (12 µs)
 ```
 
 ## Architecture
-See [DESIGN.md](DESIGN.md) for architectural details.
+See [DESIGN.md](DESIGN.md) for detailed architectural documentation and optimization findings.
