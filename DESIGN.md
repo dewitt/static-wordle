@@ -69,20 +69,13 @@ Guesses" (R) strategy:
         -   `R = 1`: Solve (Must guess the single remaining word).
     
         **Configurable Start Word:**
-    
-        The builder supports a `--start-word` argument. Experiments using
-    
-        `scripts/find_optimal_opener.py` found that **`reast`** yields the lowest
-    
-        average guess count (3.602). However, **`trace`** (3.606) is chosen as
-    
-        the default because it is a valid solution word, allowing for a 1-guess
-    
-        victory.
-    
-    
-    
-        **Beam Search:**
+    The builder supports a `--start-word` argument. Experiments using
+    `scripts/find_optimal_opener.py` found that **`reast`** yields a lower
+    average guess count (3.602) compared to the canonical `salet` (3.612).
+    However, **`trace`** (3.606) is chosen as the default because it is a valid
+    solution word, allowing for a 1-guess victory.
+
+    **Beam Search:**
 -   For a given state, generate heuristics for all valid guesses.
 -   Try beam widths `K` in `{5, 50, ALL}`.
 -   Process top `K` candidates in parallel.
@@ -100,29 +93,52 @@ generated tree.
 ## 4. Hardware Acceleration & Optimizations
 
 ### 4.1 Implemented Optimizations (Tier 2 - CPU)
-The final implementation achieves a total build time of **~1.1s** on a standard ARM64 CPU (Apple M1/M2 class), down from an initial ~60s. This speedup was achieved purely through algorithmic and CPU-level optimizations, rendering GPU acceleration unnecessary for the standard problem size (2,315 solutions).
+The final implementation achieves a total build time of **~1.1s** on a 
+standard ARM64 CPU (Apple M1/M2 class), down from an initial ~60s. This 
+speedup was achieved purely through algorithmic and CPU-level optimizations, 
+rendering GPU acceleration unnecessary for the standard problem size (2,315 
+solutions).
 
 1.  **Parallelization**:
-    -   **Pattern Table**: Generation is parallelized across guesses using `std::async`, reducing time from ~2.5s to ~0.3s.
-    -   **Beam Search**: Entropy calculations for candidate guesses are distributed across threads.
+    -   **Pattern Table**: Generation is parallelized across guesses using 
+`std::async`, reducing time from ~2.5s to ~0.3s.
+    -   **Beam Search**: Entropy calculations for candidate guesses are 
+distributed across threads.
 
 2.  **Low-Level efficiency**:
-    -   **Integer-Based Pattern Calc**: Replaced string-based `calc_pattern` with a specialized integer-based version working on pre-packed `uint8_t[5]` arrays to minimize overhead.
-    -   **Efficient Bitset Iteration**: Replaced `std::vector` allocation with direct word-level iteration and `__builtin_ctzll` (Count Trailing Zeros) to rapidly identify active solution indices.
-    -   **Entropy Lookup Table**: Replaced expensive `std::log2` calls with a precomputed lookup table for `x log_2 x`.
+    -   **Integer-Based Pattern Calc**: Replaced string-based `calc_pattern` 
+with a specialized integer-based version working on pre-packed `uint8_t[5]` 
+arrays to minimize overhead.
+    -   **Efficient Bitset Iteration**: Replaced `std::vector` allocation 
+with direct word-level iteration and `__builtin_ctzll` (Count Trailing Zeros) 
+to rapidly identify active solution indices.
+    -   **Entropy Lookup Table**: Replaced expensive `std::log2` calls with a 
+precomputed lookup table for `x log_2 x`.
 
 3.  **Algorithmic Pruning**:
-    -   **Active Character Pruning**: Implemented filtering to skip guesses sharing no letters with active candidates. *Note: This provided marginal gains on the small 2,315-word set due to the overhead of mask calculation balancing out the skipped entropy checks.*
+    -   **Active Character Pruning**: Implemented filtering to skip guesses 
+sharing no letters with active candidates. *Note: This provided marginal 
+gains on the small 2,315-word set due to the overhead of mask calculation 
+balancing out the skipped entropy checks.*
 
 ### 4.2 Discarded Approaches
--   **Tier 1 (GPU/CUDA/Metal)**: Not implemented. The overhead of data transfer and context initialization (~100-300ms) would likely exceed the total optimized compute time for this dataset size.
--   **Heuristic Variations**: Experiments with a "Min Expected Guesses" cost function yielded slightly worse results (avg 3.614) compared to Shannon Entropy (avg 3.602).
--   **Deeper Beam Search**: Increasing beam width from 5 to 10 produced identical trees, confirming the robustness of the top-5 entropy candidates.
+-   **Tier 1 (GPU/CUDA/Metal)**: Not implemented. The overhead of data 
+transfer and context initialization (~100-300ms) would likely exceed the 
+total optimized compute time for this dataset size.
+-   **Heuristic Variations**: Experiments with a "Min Expected Guesses" cost 
+function yielded slightly worse results (avg 3.614) compared to Shannon 
+Entropy (avg 3.602).
+-   **Deeper Beam Search**: Increasing beam width from 5 to 10 produced 
+identical trees, confirming the robustness of the top-5 entropy candidates.
 
 ### 4.3 Scalability Findings ("Hard Mode")
-Experiments with using the full 12,972-word dictionary as both guesses and solutions revealed the limits of this exact-search approach.
+Experiments with using the full 12,972-word dictionary as both guesses and 
+solutions revealed the limits of this exact-search approach.
 -   **Pattern Table**: Scaled linearly (approx. 1.7s generation time).
--   **Tree Build**: **Timed out (> 5 minutes).** The combinatorial explosion of handling ~13,000 solutions with a strict "exact win" requirement creates a search space too vast for iterative deepening beam search without significantly more aggressive (and potentially lossy) pruning.
+-   **Tree Build**: **Timed out (> 5 minutes).** The combinatorial explosion 
+of handling ~13,000 solutions with a strict "exact win" requirement creates a 
+search space too vast for iterative deepening beam search without 
+significantly more aggressive (and potentially lossy) pruning.
 
 ## 5. Modules Responsibilities
 
